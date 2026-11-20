@@ -1,0 +1,6 @@
+{
+  "name": "MealLoop",
+  "description": "Student-focused meal subscription platform connecting DBS Global University hostel and PG residents in Dehradun with local messes, tiffin services, and cloud kitchens.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

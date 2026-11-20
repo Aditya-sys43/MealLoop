@@ -1,0 +1,602 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Global Hardened Primitives ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isBootstrappedAdmin() {
+      return isSignedIn()
+        && request.auth.token.email == 'aditya.0251mba359@dgu.ac.in'
+        && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() || (
+        isVerified() && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isNonEmptyString(val, maxLen) {
+      return val is string && val.size() >= 1 && val.size() <= maxLen;
+    }
+
+    function isOptionalString(val, maxLen) {
+      return val is string && val.size() <= maxLen;
+    }
+
+    // --- Validation Blueprints ---
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'email', 'phone', 'hostelOrPg', 'role', 'emailVerified', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'email', 'phone', 'hostelOrPg', 'role', 'emailVerified', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && isNonEmptyString(data.displayName, 100)
+        && isNonEmptyString(data.email, 200)
+        && isOptionalString(data.phone, 20)
+        && isOptionalString(data.hostelOrPg, 160)
+        && data.role in ['student', 'provider', 'admin']
+        && data.emailVerified is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAdminEntry(data) {
+      return data.keys().hasAll(['uid', 'email', 'grantedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'grantedAt'])
+        && isValidId(data.uid)
+        && isNonEmptyString(data.email, 200)
+        && data.grantedAt is timestamp;
+    }
+
+    function isValidFoodProvider(data) {
+      return data.keys().hasAll(['id', 'ownerId', 'name', 'type', 'description', 'location', 'hygieneScore', 'status', 'isOpen', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'ownerId', 'name', 'type', 'description', 'location', 'hygieneScore', 'status', 'isOpen', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && isValidId(data.ownerId)
+        && isNonEmptyString(data.name, 120)
+        && data.type in ['Mess', 'Tiffin Service', 'Cloud Kitchen']
+        && isOptionalString(data.description, 500)
+        && isNonEmptyString(data.location, 200)
+        && data.hygieneScore is number && data.hygieneScore >= 0 && data.hygieneScore <= 5
+        && data.status in ['pending', 'approved', 'rejected']
+        && data.isOpen is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCategory(data) {
+      return data.keys().hasAll(['id', 'name', 'slug', 'description', 'sortOrder', 'isActive'])
+        && data.keys().hasOnly(['id', 'name', 'slug', 'description', 'sortOrder', 'isActive'])
+        && isValidId(data.id)
+        && isNonEmptyString(data.name, 60)
+        && isNonEmptyString(data.slug, 60)
+        && isOptionalString(data.description, 240)
+        && data.sortOrder is number && data.sortOrder >= 0 && data.sortOrder <= 100
+        && data.isActive is bool;
+    }
+
+    function isValidMeal(data) {
+      return data.keys().hasAll([
+          'id', 'providerId', 'providerOwnerId', 'providerName', 'title', 'description',
+          'category', 'dietaryTag', 'price', 'variableCost', 'imageUrl', 'calories',
+          'isAvailable', 'isTodaysSpecial', 'status', 'ratingAvg', 'ratingCount', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'providerId', 'providerOwnerId', 'providerName', 'title', 'description',
+          'category', 'dietaryTag', 'price', 'variableCost', 'imageUrl', 'calories',
+          'isAvailable', 'isTodaysSpecial', 'status', 'ratingAvg', 'ratingCount', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.providerId)
+        && isValidId(data.providerOwnerId)
+        && isNonEmptyString(data.providerName, 120)
+        && isNonEmptyString(data.title, 120)
+        && isNonEmptyString(data.description, 600)
+        && data.category in ['Breakfast', 'Lunch', 'Dinner']
+        && data.dietaryTag in ['Veg', 'High Protein', 'Jain Veg', 'Homestyle']
+        && data.price is number && data.price > 0 && data.price <= 5000
+        && data.variableCost is number && data.variableCost >= 0 && data.variableCost <= 5000
+        && isOptionalString(data.imageUrl, 2000)
+        && data.calories is number && data.calories >= 0 && data.calories <= 5000
+        && data.isAvailable is bool
+        && data.isTodaysSpecial is bool
+        && data.status in ['active', 'archived']
+        && data.ratingAvg is number && data.ratingAvg >= 0 && data.ratingAvg <= 5
+        && data.ratingCount is number && data.ratingCount >= 0
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidPricingConfig(data) {
+      return data.keys().hasAll([
+          'id', 'defaultSellingPrice', 'estimatedVariableCost', 'monthlyFixedCost',
+          'dailyPlanDiscountPct', 'weeklyPlanDiscountPct', 'monthlyPlanDiscountPct', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'defaultSellingPrice', 'estimatedVariableCost', 'monthlyFixedCost',
+          'dailyPlanDiscountPct', 'weeklyPlanDiscountPct', 'monthlyPlanDiscountPct', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.defaultSellingPrice is number && data.defaultSellingPrice > 0 && data.defaultSellingPrice <= 2000
+        && data.estimatedVariableCost is number && data.estimatedVariableCost >= 0 && data.estimatedVariableCost <= 2000
+        && data.monthlyFixedCost is number && data.monthlyFixedCost >= 0 && data.monthlyFixedCost <= 10000000
+        && data.dailyPlanDiscountPct is number && data.dailyPlanDiscountPct >= 0 && data.dailyPlanDiscountPct <= 50
+        && data.weeklyPlanDiscountPct is number && data.weeklyPlanDiscountPct >= 0 && data.weeklyPlanDiscountPct <= 50
+        && data.monthlyPlanDiscountPct is number && data.monthlyPlanDiscountPct >= 0 && data.monthlyPlanDiscountPct <= 50
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAddress(data) {
+      return data.keys().hasAll(['id', 'userId', 'label', 'hostelOrPgName', 'roomNumber', 'landmark', 'phone', 'isDefault', 'createdAt'])
+        && data.keys().hasOnly(['id', 'userId', 'label', 'hostelOrPgName', 'roomNumber', 'landmark', 'phone', 'isDefault', 'createdAt'])
+        && isValidId(data.id)
+        && isValidId(data.userId)
+        && isNonEmptyString(data.label, 40)
+        && isNonEmptyString(data.hostelOrPgName, 140)
+        && isOptionalString(data.roomNumber, 40)
+        && isOptionalString(data.landmark, 160)
+        && isNonEmptyString(data.phone, 20)
+        && data.isDefault is bool
+        && data.createdAt is timestamp;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll([
+          'id', 'userId', 'customerName', 'providerId', 'providerOwnerId', 'providerName',
+          'mealId', 'mealTitle', 'mealCategory', 'quantity', 'unitPrice', 'unitCost', 'totalAmount',
+          'deliveryAddress', 'status', 'containerStatus', 'notes', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'userId', 'customerName', 'providerId', 'providerOwnerId', 'providerName',
+          'mealId', 'mealTitle', 'mealCategory', 'quantity', 'unitPrice', 'unitCost', 'totalAmount',
+          'deliveryAddress', 'status', 'containerStatus', 'notes', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.userId)
+        && isNonEmptyString(data.customerName, 100)
+        && isValidId(data.providerId)
+        && isValidId(data.providerOwnerId)
+        && isNonEmptyString(data.providerName, 120)
+        && isValidId(data.mealId)
+        && isNonEmptyString(data.mealTitle, 120)
+        && data.mealCategory in ['Breakfast', 'Lunch', 'Dinner']
+        && data.quantity is number && data.quantity >= 1 && data.quantity <= 20
+        && data.unitPrice is number && data.unitPrice > 0 && data.unitPrice <= 5000
+        && data.unitCost is number && data.unitCost >= 0 && data.unitCost <= 5000
+        && data.totalAmount is number && data.totalAmount > 0 && data.totalAmount <= 100000
+        && isNonEmptyString(data.deliveryAddress, 300)
+        && data.status in ['Order Placed', 'Order Accepted', 'Preparing', 'Out for Delivery', 'Delivered', 'Cancelled']
+        && data.containerStatus in ['Issued', 'With Student', 'Return Scheduled', 'Returned']
+        && isOptionalString(data.notes, 300)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSubscription(data) {
+      return data.keys().hasAll([
+          'id', 'userId', 'customerName', 'providerId', 'providerOwnerId', 'providerName',
+          'planType', 'mealPreference', 'mealSlots', 'mealsPerDay', 'durationDays',
+          'totalMeals', 'pricePerMeal', 'totalAmount', 'deliveryAddress', 'startDate',
+          'status', 'containersInUse', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'userId', 'customerName', 'providerId', 'providerOwnerId', 'providerName',
+          'planType', 'mealPreference', 'mealSlots', 'mealsPerDay', 'durationDays',
+          'totalMeals', 'pricePerMeal', 'totalAmount', 'deliveryAddress', 'startDate',
+          'status', 'containersInUse', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.userId)
+        && isNonEmptyString(data.customerName, 100)
+        && isValidId(data.providerId)
+        && isValidId(data.providerOwnerId)
+        && isNonEmptyString(data.providerName, 120)
+        && data.planType in ['Daily', 'Weekly', 'Monthly']
+        && data.mealPreference in ['Veg', 'High Protein', 'Jain Veg', 'Homestyle']
+        && data.mealSlots is list && data.mealSlots.size() >= 1 && data.mealSlots.size() <= 3
+        && data.mealSlots[0] in ['Breakfast', 'Lunch', 'Dinner']
+        && data.mealsPerDay is number && data.mealsPerDay >= 1 && data.mealsPerDay <= 3
+        && data.durationDays is number && data.durationDays >= 1 && data.durationDays <= 90
+        && data.totalMeals is number && data.totalMeals >= 1 && data.totalMeals <= 270
+        && data.pricePerMeal is number && data.pricePerMeal > 0 && data.pricePerMeal <= 2000
+        && data.totalAmount is number && data.totalAmount > 0 && data.totalAmount <= 500000
+        && isNonEmptyString(data.deliveryAddress, 300)
+        && isNonEmptyString(data.startDate, 40)
+        && data.status in ['Active', 'Paused', 'Cancelled', 'Completed']
+        && data.containersInUse is number && data.containersInUse >= 0 && data.containersInUse <= 10
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidReview(data) {
+      return data.keys().hasAll(['id', 'userId', 'userName', 'mealId', 'providerId', 'orderId', 'rating', 'comment', 'createdAt'])
+        && data.keys().hasOnly(['id', 'userId', 'userName', 'mealId', 'providerId', 'orderId', 'rating', 'comment', 'createdAt'])
+        && isValidId(data.id)
+        && isValidId(data.userId)
+        && isNonEmptyString(data.userName, 100)
+        && isValidId(data.mealId)
+        && isValidId(data.providerId)
+        && isValidId(data.orderId)
+        && data.rating is number && data.rating >= 1 && data.rating <= 5
+        && isNonEmptyString(data.comment, 400)
+        && data.createdAt is timestamp;
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['id', 'userId', 'title', 'message', 'type', 'read', 'createdAt'])
+        && data.keys().hasOnly(['id', 'userId', 'title', 'message', 'type', 'read', 'createdAt'])
+        && isValidId(data.id)
+        && isValidId(data.userId)
+        && isNonEmptyString(data.title, 100)
+        && isNonEmptyString(data.message, 300)
+        && data.type in ['order', 'subscription', 'green', 'system']
+        && data.read is bool
+        && data.createdAt is timestamp;
+    }
+
+    function isValidComplaint(data) {
+      return data.keys().hasAll(['id', 'userId', 'userName', 'orderId', 'subject', 'description', 'status', 'adminResponse', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'userName', 'orderId', 'subject', 'description', 'status', 'adminResponse', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && isValidId(data.userId)
+        && isNonEmptyString(data.userName, 100)
+        && isOptionalString(data.orderId, 128)
+        && isNonEmptyString(data.subject, 120)
+        && isNonEmptyString(data.description, 600)
+        && data.status in ['Open', 'In Review', 'Resolved']
+        && isOptionalString(data.adminResponse, 500)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // --- Collection Rules ---
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isSignedIn() && (existing().uid == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUser(incoming())
+        && incoming().uid == userId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          (incoming().role in ['student', 'provider']) ||
+          (incoming().role == 'admin' && isBootstrappedAdmin())
+        );
+      allow update: if isValidId(userId)
+        && isSignedIn()
+        && isValidUser(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (
+            isOwner(userId)
+            && incoming().role == existing().role
+            && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'phone', 'hostelOrPg', 'emailVerified', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    match /admins/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isBootstrappedAdmin();
+      allow create: if isValidId(userId) && isAdmin() && isValidAdminEntry(incoming()) && incoming().grantedAt == request.time;
+      allow update: if isValidId(userId) && isAdmin() && isValidAdminEntry(incoming());
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    match /foodProviders/{providerId} {
+      allow get: if isValidId(providerId) && (
+        existing().status == 'approved' ||
+        (isSignedIn() && existing().ownerId == request.auth.uid) ||
+        isAdmin()
+      );
+      allow list: if existing().status == 'approved'
+        || (isSignedIn() && existing().ownerId == request.auth.uid)
+        || isBootstrappedAdmin();
+      allow create: if isValidId(providerId)
+        && isVerified()
+        && isValidFoodProvider(incoming())
+        && incoming().id == providerId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (incoming().ownerId == request.auth.uid && incoming().status == 'pending')
+        );
+      allow update: if isValidId(providerId)
+        && isVerified()
+        && isValidFoodProvider(incoming())
+        && incoming().id == existing().id
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (
+            existing().ownerId == request.auth.uid
+            && incoming().status == existing().status
+            && incoming().hygieneScore == existing().hygieneScore
+            && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'type', 'description', 'location', 'isOpen', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(providerId) && isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow get: if isValidId(categoryId);
+      allow list: if existing().isActive == true || isBootstrappedAdmin();
+      allow create: if isValidId(categoryId) && isAdmin() && isValidCategory(incoming()) && incoming().id == categoryId;
+      allow update: if isValidId(categoryId) && isAdmin() && isValidCategory(incoming()) && incoming().id == existing().id;
+      allow delete: if isValidId(categoryId) && isAdmin();
+    }
+
+    match /pricingConfig/{configId} {
+      allow get: if isValidId(configId);
+      allow list: if existing().defaultSellingPrice > 0;
+      allow create: if isValidId(configId) && isAdmin() && isValidPricingConfig(incoming()) && incoming().id == configId && incoming().updatedAt == request.time;
+      allow update: if isValidId(configId) && isAdmin() && isValidPricingConfig(incoming()) && incoming().id == existing().id && incoming().updatedAt == request.time;
+      allow delete: if isValidId(configId) && isAdmin();
+    }
+
+    match /meals/{mealId} {
+      allow get: if isValidId(mealId);
+      allow list: if existing().status == 'active'
+        || (isSignedIn() && existing().providerOwnerId == request.auth.uid)
+        || isBootstrappedAdmin();
+      allow create: if isValidId(mealId)
+        && isVerified()
+        && isValidMeal(incoming())
+        && incoming().id == mealId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/foodProviders/$(incoming().providerId))
+        && (
+          isAdmin() ||
+          (
+            incoming().providerOwnerId == request.auth.uid
+            && get(/databases/$(database)/documents/foodProviders/$(incoming().providerId)).data.ownerId == request.auth.uid
+            && incoming().ratingAvg == 5.0
+            && incoming().ratingCount == 0
+          )
+        );
+      allow update: if isValidId(mealId)
+        && isVerified()
+        && isValidMeal(incoming())
+        && incoming().id == existing().id
+        && incoming().providerId == existing().providerId
+        && incoming().providerOwnerId == existing().providerOwnerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (
+            existing().providerOwnerId == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'category', 'dietaryTag', 'price', 'variableCost', 'imageUrl', 'calories', 'isAvailable', 'isTodaysSpecial', 'status', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(mealId) && (isAdmin() || (isVerified() && existing().providerOwnerId == request.auth.uid));
+    }
+
+    match /addresses/{addressId} {
+      allow get: if isValidId(addressId) && isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isValidId(addressId)
+        && isVerified()
+        && isValidAddress(incoming())
+        && incoming().id == addressId
+        && incoming().userId == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update: if isValidId(addressId)
+        && isVerified()
+        && isValidAddress(incoming())
+        && incoming().id == existing().id
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && (
+          isAdmin() ||
+          (existing().userId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['label', 'hostelOrPgName', 'roomNumber', 'landmark', 'phone', 'isDefault']))
+        );
+      allow delete: if isValidId(addressId) && (isAdmin() || (isVerified() && existing().userId == request.auth.uid));
+    }
+
+    match /orders/{orderId} {
+      allow get: if isValidId(orderId) && isSignedIn() && (
+        existing().userId == request.auth.uid ||
+        existing().providerOwnerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        existing().userId == request.auth.uid ||
+        existing().providerOwnerId == request.auth.uid ||
+        isBootstrappedAdmin()
+      );
+      allow create: if isValidId(orderId)
+        && isVerified()
+        && isValidOrder(incoming())
+        && incoming().id == orderId
+        && incoming().userId == request.auth.uid
+        && incoming().status == 'Order Placed'
+        && incoming().containerStatus == 'Issued'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/foodProviders/$(incoming().providerId))
+        && exists(/databases/$(database)/documents/meals/$(incoming().mealId))
+        && get(/databases/$(database)/documents/foodProviders/$(incoming().providerId)).data.ownerId == incoming().providerOwnerId;
+      allow update: if isValidId(orderId)
+        && isVerified()
+        && isValidOrder(incoming())
+        && incoming().id == existing().id
+        && incoming().userId == existing().userId
+        && incoming().providerId == existing().providerId
+        && incoming().providerOwnerId == existing().providerOwnerId
+        && incoming().mealId == existing().mealId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          // Action: Provider Advances Order Status (locked once Delivered or Cancelled)
+          (
+            existing().providerOwnerId == request.auth.uid
+            && !(existing().status in ['Delivered', 'Cancelled'])
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+          ) ||
+          // Action: Student Cancels Order while still Placed
+          (
+            existing().userId == request.auth.uid
+            && existing().status == 'Order Placed'
+            && incoming().status == 'Cancelled'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+          ) ||
+          // Action: MealLoop Green Container Return Workflow (allowed after delivery)
+          (
+            (existing().userId == request.auth.uid || existing().providerOwnerId == request.auth.uid)
+            && incoming().status == existing().status
+            && incoming().diff(existing()).affectedKeys().hasOnly(['containerStatus', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(orderId) && isAdmin();
+    }
+
+    match /subscriptions/{subscriptionId} {
+      allow get: if isValidId(subscriptionId) && isSignedIn() && (
+        existing().userId == request.auth.uid ||
+        existing().providerOwnerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        existing().userId == request.auth.uid ||
+        existing().providerOwnerId == request.auth.uid ||
+        isBootstrappedAdmin()
+      );
+      allow create: if isValidId(subscriptionId)
+        && isVerified()
+        && isValidSubscription(incoming())
+        && incoming().id == subscriptionId
+        && incoming().userId == request.auth.uid
+        && incoming().status == 'Active'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/foodProviders/$(incoming().providerId))
+        && get(/databases/$(database)/documents/foodProviders/$(incoming().providerId)).data.ownerId == incoming().providerOwnerId;
+      allow update: if isValidId(subscriptionId)
+        && isVerified()
+        && isValidSubscription(incoming())
+        && incoming().id == existing().id
+        && incoming().userId == existing().userId
+        && incoming().providerId == existing().providerId
+        && incoming().providerOwnerId == existing().providerOwnerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          // Action: Student Pause / Resume / Cancel (locked once Cancelled or Completed)
+          (
+            existing().userId == request.auth.uid
+            && !(existing().status in ['Cancelled', 'Completed'])
+            && incoming().status in ['Active', 'Paused', 'Cancelled']
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'deliveryAddress', 'updatedAt'])
+          ) ||
+          // Action: Provider Container Count Update
+          (
+            existing().providerOwnerId == request.auth.uid
+            && !(existing().status in ['Cancelled', 'Completed'])
+            && incoming().diff(existing()).affectedKeys().hasOnly(['containersInUse', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(subscriptionId) && isAdmin();
+    }
+
+    match /reviews/{reviewId} {
+      allow get: if isValidId(reviewId);
+      allow list: if existing().rating >= 1 && existing().rating <= 5;
+      allow create: if isValidId(reviewId)
+        && isVerified()
+        && isValidReview(incoming())
+        && incoming().id == reviewId
+        && incoming().userId == request.auth.uid
+        && incoming().createdAt == request.time
+        && exists(/databases/$(database)/documents/meals/$(incoming().mealId))
+        && exists(/databases/$(database)/documents/orders/$(incoming().orderId))
+        && get(/databases/$(database)/documents/orders/$(incoming().orderId)).data.userId == request.auth.uid;
+      allow update: if isValidId(reviewId) && isAdmin() && isValidReview(incoming());
+      allow delete: if isValidId(reviewId) && (isAdmin() || (isVerified() && existing().userId == request.auth.uid));
+    }
+
+    match /notifications/{notificationId} {
+      allow get: if isValidId(notificationId) && isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isValidId(notificationId)
+        && isVerified()
+        && isValidNotification(incoming())
+        && incoming().id == notificationId
+        && incoming().createdAt == request.time
+        && (isAdmin() || incoming().userId == request.auth.uid);
+      allow update: if isValidId(notificationId)
+        && isVerified()
+        && isValidNotification(incoming())
+        && incoming().id == existing().id
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && (
+          isAdmin() ||
+          (existing().userId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['read']))
+        );
+      allow delete: if isValidId(notificationId) && (isAdmin() || (isVerified() && existing().userId == request.auth.uid));
+    }
+
+    match /complaints/{complaintId} {
+      allow get: if isValidId(complaintId) && isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isValidId(complaintId)
+        && isVerified()
+        && isValidComplaint(incoming())
+        && incoming().id == complaintId
+        && incoming().userId == request.auth.uid
+        && incoming().status == 'Open'
+        && incoming().adminResponse == ''
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(complaintId)
+        && isAdmin()
+        && isValidComplaint(incoming())
+        && incoming().id == existing().id
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time;
+      allow delete: if isValidId(complaintId) && isAdmin();
+    }
+  }
+}

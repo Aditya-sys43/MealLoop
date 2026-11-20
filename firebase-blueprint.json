@@ -1,0 +1,723 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered MealLoop user profile with role-based access control.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 200
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "hostelOrPg": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "role": {
+          "type": "string",
+          "enum": ["student", "provider", "admin"]
+        },
+        "emailVerified": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "displayName", "email", "role", "emailVerified", "createdAt", "updatedAt"]
+    },
+    "AdminEntry": {
+      "title": "AdminEntry",
+      "description": "Authoritative admin membership record.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 200
+        },
+        "grantedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "grantedAt"]
+    },
+    "FoodProvider": {
+      "title": "FoodProvider",
+      "description": "Local mess, tiffin service, or cloud kitchen partner near DBS Global University.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "type": {
+          "type": "string",
+          "enum": ["Mess", "Tiffin Service", "Cloud Kitchen"]
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "location": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 200
+        },
+        "hygieneScore": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected"]
+        },
+        "isOpen": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "ownerId", "name", "type", "location", "hygieneScore", "status", "isOpen", "createdAt", "updatedAt"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Meal category managed by admin.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "slug": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 240
+        },
+        "sortOrder": {
+          "type": "number"
+        },
+        "isActive": {
+          "type": "boolean"
+        }
+      },
+      "required": ["id", "name", "slug", "sortOrder", "isActive"]
+    },
+    "Meal": {
+      "title": "Meal",
+      "description": "Individual student meal listing offered by an approved food provider.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "providerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "providerOwnerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "providerName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "title": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "description": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 600
+        },
+        "category": {
+          "type": "string",
+          "enum": ["Breakfast", "Lunch", "Dinner"]
+        },
+        "dietaryTag": {
+          "type": "string",
+          "enum": ["Veg", "High Protein", "Jain Veg", "Homestyle"]
+        },
+        "price": {
+          "type": "number"
+        },
+        "variableCost": {
+          "type": "number"
+        },
+        "imageUrl": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "calories": {
+          "type": "number"
+        },
+        "isAvailable": {
+          "type": "boolean"
+        },
+        "isTodaysSpecial": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "archived"]
+        },
+        "ratingAvg": {
+          "type": "number"
+        },
+        "ratingCount": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "providerId", "providerOwnerId", "providerName", "title", "description", "category", "dietaryTag", "price", "variableCost", "imageUrl", "isAvailable", "isTodaysSpecial", "status", "ratingAvg", "ratingCount", "createdAt", "updatedAt"]
+    },
+    "PricingConfig": {
+      "title": "PricingConfig",
+      "description": "Venture-level pricing and unit economics configuration managed by Admin.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "defaultSellingPrice": {
+          "type": "number"
+        },
+        "estimatedVariableCost": {
+          "type": "number"
+        },
+        "monthlyFixedCost": {
+          "type": "number"
+        },
+        "dailyPlanDiscountPct": {
+          "type": "number"
+        },
+        "weeklyPlanDiscountPct": {
+          "type": "number"
+        },
+        "monthlyPlanDiscountPct": {
+          "type": "number"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "defaultSellingPrice", "estimatedVariableCost", "monthlyFixedCost", "dailyPlanDiscountPct", "weeklyPlanDiscountPct", "monthlyPlanDiscountPct", "updatedAt"]
+    },
+    "Address": {
+      "title": "Address",
+      "description": "Saved hostel or PG delivery address belonging to a student.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "hostelOrPgName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 140
+        },
+        "roomNumber": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "landmark": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "phone": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 20
+        },
+        "isDefault": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "userId", "label", "hostelOrPgName", "phone", "isDefault", "createdAt"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Student meal order with real-time lifecycle status and MealLoop Green container tracking.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "customerName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "providerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "providerOwnerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "providerName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "mealId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "mealTitle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "mealCategory": {
+          "type": "string",
+          "enum": ["Breakfast", "Lunch", "Dinner"]
+        },
+        "quantity": {
+          "type": "number"
+        },
+        "unitPrice": {
+          "type": "number"
+        },
+        "unitCost": {
+          "type": "number"
+        },
+        "totalAmount": {
+          "type": "number"
+        },
+        "deliveryAddress": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 300
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Order Placed", "Order Accepted", "Preparing", "Out for Delivery", "Delivered", "Cancelled"]
+        },
+        "containerStatus": {
+          "type": "string",
+          "enum": ["Issued", "With Student", "Return Scheduled", "Returned"]
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "userId", "customerName", "providerId", "providerOwnerId", "providerName", "mealId", "mealTitle", "mealCategory", "quantity", "unitPrice", "unitCost", "totalAmount", "deliveryAddress", "status", "containerStatus", "notes", "createdAt", "updatedAt"]
+    },
+    "Subscription": {
+      "title": "Subscription",
+      "description": "Flexible Daily, Weekly, or Monthly student meal subscription.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "customerName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "providerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "providerOwnerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "providerName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "planType": {
+          "type": "string",
+          "enum": ["Daily", "Weekly", "Monthly"]
+        },
+        "mealPreference": {
+          "type": "string",
+          "enum": ["Veg", "High Protein", "Jain Veg", "Homestyle"]
+        },
+        "mealSlots": {
+          "type": "array"
+        },
+        "mealsPerDay": {
+          "type": "number"
+        },
+        "durationDays": {
+          "type": "number"
+        },
+        "totalMeals": {
+          "type": "number"
+        },
+        "pricePerMeal": {
+          "type": "number"
+        },
+        "totalAmount": {
+          "type": "number"
+        },
+        "deliveryAddress": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 300
+        },
+        "startDate": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Active", "Paused", "Cancelled", "Completed"]
+        },
+        "containersInUse": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "userId", "customerName", "providerId", "providerOwnerId", "providerName", "planType", "mealPreference", "mealSlots", "mealsPerDay", "durationDays", "totalMeals", "pricePerMeal", "totalAmount", "deliveryAddress", "startDate", "status", "containersInUse", "createdAt", "updatedAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Student meal rating and feedback linked to an order.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "mealId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "providerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "orderId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "rating": {
+          "type": "number"
+        },
+        "comment": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 400
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "userId", "userName", "mealId", "providerId", "orderId", "rating", "comment", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "User notification for order updates, subscriptions, and container returns.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "type": {
+          "type": "string",
+          "enum": ["order", "subscription", "green", "system"]
+        },
+        "read": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "userId", "title", "message", "type", "read", "createdAt"]
+    },
+    "Complaint": {
+      "title": "Complaint",
+      "description": "Customer complaint or quality issue tracked by Admin.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "orderId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 120
+        },
+        "description": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 600
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Open", "In Review", "Resolved"]
+        },
+        "adminResponse": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "userId", "userName", "orderId", "subject", "description", "status", "adminResponse", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profile documents isolated per user and admin."
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/AdminEntry" },
+      "description": "Authoritative admin role registry."
+    },
+    "/foodProviders/{providerId}": {
+      "schema": { "$ref": "#/entities/FoodProvider" },
+      "description": "Registered local messes, tiffin providers, and cloud kitchens."
+    },
+    "/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "Food categories configured by admins."
+    },
+    "/meals/{mealId}": {
+      "schema": { "$ref": "#/entities/Meal" },
+      "description": "Available student meals published by food providers."
+    },
+    "/pricingConfig/{configId}": {
+      "schema": { "$ref": "#/entities/PricingConfig" },
+      "description": "Global unit economics and subscription pricing parameters."
+    },
+    "/addresses/{addressId}": {
+      "schema": { "$ref": "#/entities/Address" },
+      "description": "Saved hostel and PG delivery addresses per student."
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Student meal orders with live delivery and reusable container statuses."
+    },
+    "/subscriptions/{subscriptionId}": {
+      "schema": { "$ref": "#/entities/Subscription" },
+      "description": "Daily, weekly, and monthly student meal subscriptions."
+    },
+    "/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/Review" },
+      "description": "Student reviews and ratings for meals and providers."
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "Per-user operational notifications."
+    },
+    "/complaints/{complaintId}": {
+      "schema": { "$ref": "#/entities/Complaint" },
+      "description": "Customer complaints and support tickets managed by Admin."
+    }
+  }
+}
